@@ -231,6 +231,7 @@ timeout /t 2 /nobreak >nul
 rd /s /q "app\\_bak" >nul 2>&1
 mkdir "app\\_bak" >nul 2>&1
 {swaps}
+if not exist "app\\frontend\\vendor" if exist "app\\_bak\\frontend\\vendor" move "app\\_bak\\frontend\\vendor" "app\\frontend\\vendor" >nul 2>&1
 rd /s /q "app_new" >nul 2>&1
 start "" "{launcher}"
 (goto) 2>nul & del "%~f0"
@@ -246,6 +247,7 @@ cd "$(dirname "$0")"
 sleep 2
 rm -rf "app/_bak" && mkdir -p "app/_bak"
 {swaps}
+if [ ! -e "app/frontend/vendor" ] && [ -e "app/_bak/frontend/vendor" ]; then mv "app/_bak/frontend/vendor" "app/frontend/vendor"; fi
 rm -rf "app_new"
 nohup sh "app/start.sh" >/dev/null 2>&1 &
 rm -f "$0"

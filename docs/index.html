@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Any2GGB · 一句话，画出一张题目配图</title>
+<meta name="description" content="Any2GGB —— 数理老师的 AI 配图工具。一句话描述题目图形，AI 生成 GeoGebra 脚本、浏览器实时渲染，工具栏手动加工，一键复制或导出高清 PNG 插进试卷。支持 2D/3D、上传参考图复刻、按需互动。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%234a72d0'/%3E%3Cpath d='M7 24 L16 8 L25 24 Z' fill='none' stroke='%23fff' stroke-width='2.4' stroke-linejoin='round'/%3E%3Ccircle cx='16' cy='8' r='2.6' fill='%23ffd166'/%3E%3C/svg%3E">
+<style>
+:root{
+  --paper:#FAFBFC; --panel:#FFFFFF; --panel-2:#F6F8FB;
+  --ink:#1B2330; --ink-soft:#37414F; --muted:#6B7686; --subtle:#A2AAB6;
+  --line:#E6EBF1; --divider:#EEF2F6;
+  --accent:#4A72D0; --accent-deep:#3A5CB8; --accent-teal:#1A9E8F; --accent-green:#5BB85B;
+  --grid:#DDE6F0; --axis:#9AA7B8;
+  --sans:'Inter',-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;
+  --serif:'Noto Serif SC','Source Han Serif SC','Songti SC',serif;
+  --mono:'SF Mono','JetBrains Mono',Menlo,Consolas,monospace;
+  --sh:0 1px 2px rgba(27,35,48,.04),0 16px 44px rgba(27,35,48,.07);
+  --sh-accent:0 10px 30px rgba(74,114,208,.28);
+  /* 配图取色 */
+  --c-blue:#3B6FD4; --c-teal:#159C8C; --c-green:#4FA84F; --c-gold:#E9A227;
+  --c-red:#D8503C; --c-purple:#7A5CD0; --c-ink:#2A3340;
+}
+@media (prefers-color-scheme:dark){
+  :root{--paper:#0E1116;--panel:#161A21;--panel-2:#1B2028;--ink:#E9ECF1;--ink-soft:#C4CAD4;
+    --muted:#909AA8;--subtle:#646E7C;--line:#272D37;--divider:#20262F;
+    --accent:#6C8FE6;--accent-deep:#7F9BEA;--accent-teal:#2FB9A8;
+    --sh:0 1px 2px rgba(0,0,0,.35),0 16px 44px rgba(0,0,0,.5);}
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:var(--sans);background:var(--paper);color:var(--ink);-webkit-font-smoothing:antialiased;
+  line-height:1.6;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+.wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+.serif{font-family:var(--serif)}
+
+/* logo mark */
+.logo{width:30px;height:30px;border-radius:9px;background:var(--accent);display:inline-flex;
+  align-items:center;justify-content:center;flex:0 0 auto}
+.logo svg{width:20px;height:20px}
+
+/* nav */
+nav{position:sticky;top:0;z-index:30;background:rgba(250,251,252,.82);backdrop-filter:saturate(180%) blur(18px);
+  -webkit-backdrop-filter:saturate(180%) blur(18px);border-bottom:1px solid var(--line)}
+@media (prefers-color-scheme:dark){nav{background:rgba(14,17,22,.82)}}
+nav .wrap{display:flex;align-items:center;gap:11px;height:60px}
+nav b{font-size:18px;letter-spacing:-.3px}
+nav .ver{font-family:var(--mono);font-size:11px;color:var(--accent);background:rgba(74,114,208,.1);
+  border-radius:6px;padding:2px 7px;font-weight:600}
+nav .sp{margin-left:auto;display:flex;gap:9px;align-items:center}
+.btn{display:inline-flex;align-items:center;gap:7px;border-radius:999px;padding:9px 18px;font-size:14px;
+  font-weight:500;transition:.16s;border:1px solid transparent;white-space:nowrap;cursor:pointer}
+.btn.primary{background:linear-gradient(140deg,var(--accent),var(--accent-teal));color:#fff;box-shadow:var(--sh-accent)}
+.btn.primary:hover{transform:translateY(-1px)}
+.btn.ghost{background:rgba(107,118,134,.1);color:var(--ink)}
+.btn.ghost:hover{background:rgba(107,118,134,.18)}
+.btn.line{border-color:var(--line)}
+
+/* hero */
+.hero{position:relative;padding:74px 0 30px;text-align:center;overflow:hidden}
+.hero::before{content:"";position:absolute;inset:-10% -20% auto;height:420px;z-index:0;
+  background:radial-gradient(50% 60% at 30% 20%,rgba(74,114,208,.15),transparent 70%),
+    radial-gradient(46% 56% at 78% 26%,rgba(26,158,143,.12),transparent 70%),
+    radial-gradient(40% 50% at 60% 80%,rgba(91,184,91,.09),transparent 70%);filter:blur(6px)}
+.hero .wrap{position:relative;z-index:1}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:500;color:var(--accent-deep);
+  background:rgba(74,114,208,.1);padding:6px 15px;border-radius:999px;margin-bottom:22px}
+.eyebrow .d{width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px rgba(74,114,208,.18)}
+h1{font-family:var(--serif);font-size:clamp(34px,6.2vw,62px);line-height:1.12;letter-spacing:-.5px;font-weight:700}
+h1 .grad{background:linear-gradient(110deg,var(--accent),var(--accent-teal) 60%,var(--accent-green));
+  -webkit-background-clip:text;background-clip:text;color:transparent}
+.lead{font-size:clamp(15px,2vw,18px);color:var(--muted);max-width:580px;margin:20px auto 0}
+.cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:30px}
+.cta .btn{padding:12px 24px;font-size:15px}
+
+/* figure wall —— 主视觉：干净的题目配图（白底方格纸，对应实际出图） */
+.wall{margin:50px auto 0;display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+@media(max-width:880px){.wall{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:480px){.wall{grid-template-columns:1fr}}
+.scene{position:relative;border-radius:18px;overflow:hidden;border:1px solid var(--line);
+  background:var(--panel);box-shadow:var(--sh);aspect-ratio:4/3}
+.scene svg{position:absolute;inset:0;width:100%;height:100%}
+.scene .cap{position:absolute;left:12px;bottom:11px;z-index:2;font-size:11.5px;color:var(--muted);
+  background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:4px 9px}
+.scene .badge{position:absolute;right:11px;top:11px;z-index:2;font-size:10.5px;font-weight:600;letter-spacing:.4px;
+  color:#fff;background:var(--accent);border-radius:6px;padding:2px 7px}
+.gfig{fill:none;stroke:var(--c-ink);stroke-width:2.6;stroke-linejoin:round;stroke-linecap:round}
+.glabel{font-family:var(--serif);fill:var(--c-ink);font-size:14px}
+.gpt{fill:var(--c-blue)}
+.draw{stroke-dasharray:600;stroke-dashoffset:600;animation:draw 2.2s ease .2s forwards}
+.draw2{stroke-dasharray:600;stroke-dashoffset:600;animation:draw 2.2s ease .5s forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+.fade{opacity:0;animation:fade .8s ease 1.5s forwards}
+@keyframes fade{to{opacity:1}}
+.spin3d{transform-origin:center;animation:sp 14s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* feature row */
+section{padding:54px 0}
+.feats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;max-width:960px;margin:0 auto}
+@media(max-width:820px){.feats{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:440px){.feats{grid-template-columns:1fr}}
+.feat{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px 22px;box-shadow:var(--sh)}
+.feat .ic{font-size:22px;margin-bottom:10px}
+.feat b{font-size:15.5px}
+.feat span{display:block;color:var(--muted);font-size:13px;margin-top:3px}
+
+/* scenarios */
+.subj{text-align:center}
+.subj .t{font-family:var(--serif);font-size:clamp(22px,3.4vw,30px);font-weight:700;margin-bottom:8px}
+.subj .s{color:var(--muted);font-size:14.5px;margin-bottom:26px}
+.chips{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;max-width:720px;margin:0 auto}
+.chip{background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:8px 18px;font-size:14px;
+  font-weight:500;box-shadow:var(--sh)}
+.pipe{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:30px}
+.pcard{font-family:var(--serif);font-weight:600;background:var(--panel);border:1px solid var(--line);
+  border-radius:14px;padding:14px 22px;font-size:15px;box-shadow:var(--sh)}
+.parrow{color:var(--accent);font-weight:700}
+
+/* final cta */
+.final{text-align:center}
+.final .box{background:linear-gradient(150deg,rgba(74,114,208,.1),rgba(26,158,143,.08));
+  border:1px solid rgba(74,114,208,.2);border-radius:30px;padding:52px 30px;max-width:840px;margin:0 auto}
+.final h2{font-family:var(--serif);font-size:clamp(26px,4vw,40px);letter-spacing:-.4px;font-weight:700}
+.final p{color:var(--muted);margin:14px auto 0;max-width:500px}
+
+footer{border-top:1px solid var(--line);padding:32px 0;color:var(--muted);font-size:13.5px}
+footer .wrap{display:flex;align-items:center;gap:13px;flex-wrap:wrap}
+footer .sp{margin-left:auto;display:flex;gap:18px}
+footer a:hover{color:var(--ink)}
+.note{font-size:12px;color:var(--subtle);max-width:1120px;margin:10px auto 0;padding:0 24px;text-align:center}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <span class="logo"><svg viewBox="0 0 32 32"><path d="M7 24 L16 8 L25 24 Z" fill="none" stroke="#fff" stroke-width="2.4" stroke-linejoin="round"/><circle cx="16" cy="8" r="2.6" fill="#ffd166"/></svg></span>
+    <b>Any2GGB</b>
+    <span class="ver">数理配图</span>
+    <div class="sp">
+      <a class="btn line" href="#figures">效果</a>
+      <a class="btn primary" href="https://github.com/buBailai/Any2GGB" target="_blank">GitHub ↗</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero" id="figures">
+  <div class="wrap">
+    <div class="eyebrow"><span class="d"></span>开源 · 自带 Key · 浏览器出图</div>
+    <h1>一句话，<span class="grad serif">画出一张题目配图</span></h1>
+    <p class="lead">数理老师描述题目图形，AI 生成 <b>GeoGebra</b> 脚本、浏览器实时渲染。工具栏继续手动加工，一键复制或导出高清 PNG，直接插进试卷。</p>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/buBailai/Any2GGB" target="_blank">在 GitHub 查看</a>
+      <a class="btn ghost" href="downloads/Any2GGB-Win-v0.4.3.zip" download><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> 下载 Windows 版</a>
+      <a class="btn ghost" href="#scenarios">能做什么</a>
+    </div>
+
+    <!-- 题目配图效果墙：白底方格纸，对应实际干净出图 -->
+    <div class="wall">
+      <!-- 1. 勾股 / 直角三角形 -->
+      <div class="scene">
+        <span class="badge">几何</span>
+        <svg viewBox="0 0 280 210" preserveAspectRatio="xMidYMid meet">
+          <g stroke="var(--grid)" stroke-width="1">
+            <line x1="0" y1="52" x2="280" y2="52"/><line x1="0" y1="105" x2="280" y2="105"/><line x1="0" y1="158" x2="280" y2="158"/>
+            <line x1="70" y1="0" x2="70" y2="210"/><line x1="140" y1="0" x2="140" y2="210"/><line x1="210" y1="0" x2="210" y2="210"/>
+          </g>
+          <polygon points="60,165 210,165 210,70" class="gfig draw" stroke="var(--c-blue)"/>
+          <rect x="196" y="151" width="14" height="14" fill="none" stroke="var(--axis)" stroke-width="1.5"/>
+          <circle cx="60" cy="165" r="4" class="gpt"/><circle cx="210" cy="165" r="4" class="gpt"/><circle cx="210" cy="70" r="4" class="gpt"/>
+          <text x="46" y="182" class="glabel">A</text><text x="214" y="182" class="glabel">B</text><text x="216" y="70" class="glabel">C</text>
+          <text x="128" y="184" class="glabel" fill="var(--c-teal)">a</text>
+          <text x="218" y="122" class="glabel" fill="var(--c-teal)">b</text>
+          <text x="120" y="108" class="glabel" fill="var(--c-teal)">c</text>
+          <text x="70" y="46" class="glabel fade" font-size="16">a²+b²=c²</text>
+        </svg>
+        <span class="cap">勾股定理配图</span>
+      </div>
+
+      <!-- 2. 抛物线 -->
+      <div class="scene">
+        <span class="badge">函数</span>
+        <svg viewBox="0 0 280 210" preserveAspectRatio="xMidYMid meet">
+          <g stroke="var(--grid)" stroke-width="1">
+            <line x1="0" y1="55" x2="280" y2="55"/><line x1="0" y1="155" x2="280" y2="155"/>
+            <line x1="80" y1="0" x2="80" y2="210"/><line x1="200" y1="0" x2="200" y2="210"/>
+          </g>
+          <g stroke="var(--axis)" stroke-width="1.5" stroke-linecap="round">
+            <line x1="140" y1="18" x2="140" y2="192"/><line x1="24" y1="150" x2="256" y2="150"/>
+          </g>
+          <path d="M56,44 C104,214 176,214 224,44" class="gfig draw" stroke="var(--c-blue)" stroke-width="3"/>
+          <circle cx="140" cy="150" r="4.5" class="gpt fade"/>
+          <text x="146" y="168" class="glabel fade" font-size="12">顶点</text>
+          <text x="60" y="38" class="glabel" fill="var(--c-blue)">y=x²</text>
+        </svg>
+        <span class="cap">函数图像</span>
+      </div>
+
+      <!-- 3. 圆与半径 -->
+      <div class="scene">
+        <span class="badge">圆</span>
+        <svg viewBox="0 0 280 210" preserveAspectRatio="xMidYMid meet">
+          <g stroke="var(--grid)" stroke-width="1">
+            <line x1="0" y1="55" x2="280" y2="55"/><line x1="0" y1="105" x2="280" y2="105"/><line x1="0" y1="155" x2="280" y2="155"/>
+            <line x1="90" y1="0" x2="90" y2="210"/><line x1="140" y1="0" x2="140" y2="210"/><line x1="190" y1="0" x2="190" y2="210"/>
+          </g>
+          <circle cx="140" cy="105" r="66" class="gfig draw" stroke="var(--c-blue)"
+            style="stroke-dasharray:415;stroke-dashoffset:415;animation:draw 2.4s ease .3s forwards"/>
+          <line x1="140" y1="105" x2="200" y2="77" class="gfig" stroke="var(--c-teal)" stroke-width="2.4"/>
+          <circle cx="140" cy="105" r="4" class="gpt"/><circle cx="200" cy="77" r="4.5" class="gpt fade"/>
+          <text x="122" y="122" class="glabel">O</text>
+          <text x="164" y="82" class="glabel" fill="var(--c-teal)">r</text>
+          <text x="98" y="200" class="glabel fade" font-size="15">S=πr²</text>
+        </svg>
+        <span class="cap">圆与半径</span>
+      </div>
+
+      <!-- 4. 3D 正方体 -->
+      <div class="scene">
+        <span class="badge">立体</span>
+        <svg viewBox="0 0 280 210" preserveAspectRatio="xMidYMid meet">
+          <g class="spin3d" style="transform-box:view-box;transform-origin:140px 105px">
+            <g class="gfig" stroke="var(--c-blue)" stroke-width="2.2">
+              <path d="M92,138 L92,74 L156,74 L156,138 Z"/>
+              <path d="M92,74 L124,50 L188,50 L156,74"/>
+              <path d="M156,74 L188,50 L188,114 L156,138"/>
+              <path class="draw2" d="M92,138 L124,114 L124,50 M124,114 L188,114" stroke="var(--c-red)" stroke-width="1.8" stroke-dasharray="4 5"/>
+            </g>
+          </g>
+          <path d="M92,138 L188,50" stroke="var(--c-gold)" stroke-width="2.4" fill="none" class="fade" stroke-linecap="round"/>
+          <text x="70" y="188" class="glabel fade" font-size="13">体对角线</text>
+        </svg>
+        <span class="cap">立体几何 · 可旋转</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <div class="feats">
+      <div class="feat"><div class="ic">✏️</div><b>一句话生成</b><span>描述题目图形，AI 出配图，还能对话式修改</span></div>
+      <div class="feat"><div class="ic">🖼️</div><b>上传参考图复刻</b><span>传一张试题插图，AI 照着还原（需视觉模型）</span></div>
+      <div class="feat"><div class="ic">🧊</div><b>2D / 3D 都能画</b><span>平面配图与立体几何，3D 可旋转观察</span></div>
+      <div class="feat"><div class="ic">📋</div><b>一键插进试卷</b><span>复制或导出高清 PNG，可选不含坐标系</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="subj" id="scenarios">
+  <div class="wrap">
+    <div class="t serif">四种场景，随手出图</div>
+    <div class="s">从自由创作到严格照图复刻，工具栏还能继续手动加工</div>
+    <div class="chips">
+      <span class="chip">自由</span><span class="chip">解题</span><span class="chip">配图</span><span class="chip">复刻</span>
+      <span class="chip">2D / 3D</span><span class="chip">按需互动</span><span class="chip">演示模式免 Key</span>
+    </div>
+    <div class="pipe">
+      <span class="pcard">一句话描述</span><span class="parrow">→</span>
+      <span class="pcard">AI 画图</span><span class="parrow">→</span>
+      <span class="pcard">工具栏手动加工</span><span class="parrow">→</span>
+      <span class="pcard">复制 / 导出</span>
+    </div>
+  </div>
+</section>
+
+<section class="final">
+  <div class="wrap">
+    <div class="box">
+      <h2 class="serif">出题配图，<br>交给会画图的 AI</h2>
+      <p>开源 · 自带 API Key · 本地部署 · 数据自主。备课、出卷、讲义配图，浏览器里几秒搞定。</p>
+      <div class="cta" style="justify-content:center;margin-top:26px">
+        <a class="btn primary" href="https://github.com/buBailai/Any2GGB" target="_blank">前往 GitHub</a>
+        <a class="btn ghost" href="downloads/Any2GGB-Win-v0.4.3.zip" download>下载 Windows 版</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span class="logo"><svg viewBox="0 0 32 32"><path d="M7 24 L16 8 L25 24 Z" fill="none" stroke="#fff" stroke-width="2.4" stroke-linejoin="round"/><circle cx="16" cy="8" r="2.6" fill="#ffd166"/></svg></span>
+    <span>Any2GGB · MIT © buBailai · 渲染引擎 <a href="https://www.geogebra.org" target="_blank">GeoGebra</a></span>
+    <div class="sp">
+      <a href="https://github.com/buBailai/Any2GGB" target="_blank">GitHub</a>
+      <a href="https://github.com/buBailai/Any2Manim" target="_blank">Any2Manim</a>
+    </div>
+  </div>
+</footer>
+<p class="note">内嵌 GeoGebra Math Apps 引擎版权归 GeoGebra GmbH，遵循 GeoGebra 非商业许可，本工具及任何分发不得用于商业收费。</p>
+
+</body>
+</html>

@@ -56,6 +56,39 @@ def _as_data_url(img: str) -> str:
     return f"data:image/png;base64,{s}"
 
 
+def _is_local_endpoint(url: str) -> bool:
+    """端点是否本机/局域网地址——这类地址不应经代理（否则代理环境变量会让 ollama/本地网关连不上）。"""
+    import ipaddress
+    from urllib.parse import urlparse
+    try:
+        host = urlparse(url).hostname or ""
+    except ValueError:
+        return False
+    if host in ("localhost", "127.0.0.1", "::1", "0.0.0.0"):
+        return True
+    try:
+        ip = ipaddress.ip_address(host)
+        return ip.is_private or ip.is_loopback
+    except ValueError:
+        return False
+
+
+def _client_kwargs(url: str) -> dict:
+    kw: dict = {"timeout": OpenAILLM.TIMEOUT}
+    if _is_local_endpoint(url):
+        kw["trust_env"] = False     # 本机/局域网服务直连，忽略 HTTP(S)_PROXY 等代理设置
+    return kw
+
+
+def _conn_error(url: str, err: object) -> "LLMError":
+    if isinstance(err, httpx.ConnectError):
+        return LLMError(
+            f"连接被拒绝，无法访问 {url}。请检查：① 该地址的服务是否正在运行、这台电脑能否访问到它"
+            "（localhost / 127.0.0.1 指的是运行本程序的这台电脑本身，不是你的另一台机器）；"
+            "② 若开了代理或 VPN（如 Clash），本机/局域网地址请设为直连或先关掉代理。")
+    return LLMError(f"LLM 调用失败（已重试）：{err}")
+
+
 class OpenAILLM(BaseLLM):
     vision = True   # OpenAI 兼容端点，是否真支持视觉取决于用户配的模型
 
@@ -97,7 +130,7 @@ class OpenAILLM(BaseLLM):
         last_err: Exception | None = None
         for attempt in range(2):          # 超时/5xx/断连 自动重试 1 次
             try:
-                with httpx.Client(timeout=self.TIMEOUT) as cli:
+                with httpx.Client(**_client_kwargs(url)) as cli:
                     r = cli.post(url, json=payload, headers=headers)
                     if r.status_code == 400 and "max_tokens" in payload \
                             and "max_tokens" in r.text:
@@ -117,7 +150,7 @@ class OpenAILLM(BaseLLM):
                     continue
             except Exception as e:  # noqa: BLE001
                 raise LLMError(f"LLM 调用失败：{e}")
-        raise LLMError(f"LLM 调用失败（已重试）：{last_err}")
+        raise _conn_error(url, last_err)
 
     async def acomplete(self, system: str, user: str, *, task: str = "scriptgen",
                         temperature: float = 0.2,
@@ -144,7 +177,7 @@ class OpenAILLM(BaseLLM):
         last_err: Exception | None = None
         for attempt in range(2):
             try:
-                async with httpx.AsyncClient(timeout=self.TIMEOUT) as cli:
+                async with httpx.AsyncClient(**_client_kwargs(url)) as cli:
                     response = await cli.post(url, json=payload, headers=headers)
                     if response.status_code == 400 and "max_tokens" in payload \
                             and "max_tokens" in response.text:
@@ -168,7 +201,7 @@ class OpenAILLM(BaseLLM):
                 raise
             except Exception as exc:  # noqa: BLE001
                 raise LLMError(f"LLM 调用失败：{exc}")
-        raise LLMError(f"LLM 调用失败（已重试）：{last_err}")
+        raise _conn_error(url, last_err)
 
 
 # ── 演示模式（无 Key）：亲测可跑的 GGB 脚本 ───────────────────

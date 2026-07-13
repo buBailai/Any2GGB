@@ -654,6 +654,69 @@ app.mount("/media", StaticFiles(directory=str(config.DATA_DIR)), name="media")
 app.mount("/", StaticFiles(directory=str(config.FRONTEND_DIR), html=True), name="static")
 
 
+def _real_lan_ip() -> "str | None":
+    """找一个真实的局域网 IP（192.168/10/172.16-31），排除 Clash/VPN 假地址段。
+    找不到就返回 None（改用 localhost，保证自动打开一定能连上本机服务）。"""
+    import ipaddress
+    import socket
+
+    def _good(ip: str) -> bool:
+        try:
+            a = ipaddress.ip_address(ip)
+        except ValueError:
+            return False
+        if a.is_loopback or not a.is_private:
+            return False
+        if ip.startswith(("198.18.", "198.19.", "100.")):   # Clash 基准段 / CGNAT / Tailscale
+            return False
+        return True
+
+    cands: list[str] = []
+    try:                                    # 默认路由出口 IP（可能是 TUN，故还要过滤）
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        cands.append(s.getsockname()[0])
+        s.close()
+    except OSError:
+        pass
+    try:
+        for info in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
+            cands.append(info[4][0])
+    except OSError:
+        pass
+    for ip in cands:
+        if _good(ip):
+            return ip
+    return None
+
+
+def _open_browser_when_ready(port: int) -> None:
+    """等端口真正监听后再打开浏览器。优先局域网地址（其他设备也能访问），
+    没有可靠局域网地址时退回 localhost，保证一定能打开可用页面。"""
+    import socket
+    import time
+    import webbrowser
+    for _ in range(80):                     # 最多等约 24s
+        try:
+            with socket.create_connection(("127.0.0.1", port), timeout=0.5):
+                break
+        except OSError:
+            time.sleep(0.3)
+    lan = _real_lan_ip()
+    open_url = f"http://{lan}:{port}" if lan else f"http://127.0.0.1:{port}"
+    if lan:
+        print(f"[Any2GGB] 本机: http://localhost:{port}   局域网(可分享): http://{lan}:{port}", flush=True)
+    else:
+        print(f"[Any2GGB] 打开: http://localhost:{port}", flush=True)
+    try:
+        webbrowser.open(open_url)
+    except Exception:  # noqa: BLE001
+        pass
+
+
 if __name__ == "__main__":
+    import threading
+
     import uvicorn
+    threading.Thread(target=_open_browser_when_ready, args=(config.PORT,), daemon=True).start()
     uvicorn.run("backend.main:app", host="0.0.0.0", port=config.PORT)

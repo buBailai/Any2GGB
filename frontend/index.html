@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Any2GGB · AI 数理配图</title>
+<link rel="stylesheet" href="/styles.css?v=12">
+<script src="/vendor/ggb/deployggb.js"></script>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">◈</span>
+    <b>Any2GGB</b>
+    <span class="ver" id="verChip">v?</span>
+    <span class="demo-chip" id="demoChip" hidden>演示模式</span>
+  </div>
+  <div class="top-actions">
+    <button class="ghost" id="changelogBtn">更新日志</button>
+    <button class="ghost" id="settingsBtn">⚙ API 设置</button>
+  </div>
+</header>
+
+<main class="workspace">
+  <!-- 左：项目 + 对话 -->
+  <section class="left">
+    <div class="proj-bar">
+      <select id="projSelect"></select>
+      <button id="newProjBtn" title="新建配图项目">＋</button>
+    </div>
+    <div class="chat" id="chatBox"></div>
+    <div class="generation-options">
+      <div class="option-row">
+        <span class="option-label">场景</span>
+        <div class="choice-group" id="modeChoices"></div>
+      </div>
+      <div class="option-row">
+        <span class="option-label">画布</span>
+        <div class="choice-group compact" id="spaceChoices"></div>
+        <span class="option-hint" id="modeHint"></span>
+      </div>
+      <div class="option-row">
+        <span class="option-label">互动</span>
+        <label class="interaction-toggle" title="默认关闭=纯静态配图；开启后 AI 会根据需求设计滑杆、动点、勾选框或动画">
+          <input type="checkbox" id="interactiveToggle">
+          <span>加入互动</span>
+        </label>
+        <span class="option-hint" id="interactionHint">默认纯画图</span>
+      </div>
+    </div>
+    <div class="attachbar" id="attachBar"></div>
+    <div class="composer">
+      <textarea id="promptInput" rows="3" placeholder="描述你要的配图，如：画一个直角三角形，两直角边 3、4，标注三边和直角符号…（需要交互就直接说，比如「加个滑杆控制斜率」；也可上传参考图让 AI 复刻）"></textarea>
+      <div class="composer-actions">
+        <button id="attachBtn" class="ghost" title="上传参考图或文件（图片可让 AI 复刻/复原配图，文本文件可作题目参考）">📎 参考图/文件</button>
+        <button id="stopBtn" class="stop-generation" title="停止当前项目正在进行或遗留的生成任务" hidden>■ 停止</button>
+        <button id="sendBtn">生成</button>
+      </div>
+      <input type="file" id="fileInput" accept="image/*,.txt,.md,.csv,.tex" multiple hidden>
+    </div>
+    <div class="status" id="statusBar">就绪</div>
+  </section>
+
+  <!-- 右：预览 / 脚本 -->
+  <section class="right">
+    <div class="tabs">
+      <button class="tab active" data-tab="preview">预览</button>
+      <button class="tab" data-tab="script">脚本</button>
+      <button class="tab" data-tab="plan">绘图方案</button>
+      <div class="tab-actions">
+        <button class="ghost" id="toolbarBtn" title="显示/隐藏 GeoGebra 绘图工具栏，可继续手动绘制">🛠 工具栏</button>
+        <button class="ghost" id="restoreBtn" title="找回上次重绘前的画布（含手动绘制内容）" hidden>↩ 恢复重绘前</button>
+        <button class="ghost" id="exportGGBBtn" title="导出 .ggb 文件">导出 .ggb</button>
+        <button class="ghost" id="exportHTMLBtn" title="导出可拖动、可继续操作的互动网页；打开时需要联网加载 GeoGebra">互动网页</button>
+        <label class="png-opt" title="勾选=图片带坐标轴和网格；默认不带，适合几何配图"><input type="checkbox" id="pngWithCoords">含坐标系</label>
+        <label class="png-opt" title="勾选=透明背景，适合插入文档"><input type="checkbox" id="pngTransparent" checked>透明底</label>
+        <button class="ghost" id="copyPNGBtn" title="把当前画面复制到剪贴板，可直接粘贴进 Word/PPT">📋 复制图片</button>
+        <button class="ghost" id="exportPNGBtn" title="导出当前画面高清 PNG">导出 PNG</button>
+      </div>
+    </div>
+
+    <div class="pane active" id="pane-preview">
+      <div id="ggbBox"><div id="ggbApplet"></div></div>
+      <div class="stepbar">
+        <button id="stepPrevBtn" title="上一步">⏮ 上一步</button>
+        <span id="stepLabel">未加载</span>
+        <button id="stepNextBtn" title="下一步">下一步 ⏭</button>
+        <button id="stepAllBtn" class="ghost" title="一次执行全部步骤">全部执行</button>
+      </div>
+    </div>
+
+    <div class="pane" id="pane-script">
+      <textarea id="scriptEditor" spellcheck="false" placeholder="GGB 命令脚本会出现在这里，可直接编辑"></textarea>
+      <div class="script-actions">
+        <button id="runScriptBtn">▶ 重新执行</button>
+        <button id="saveScriptBtn" class="ghost" title="把当前手改脚本和画布保存为新的历史版本">保存为新版本</button>
+        <span class="hint">一行一条 GeoGebra 命令；`# step_NN：…` 为步骤注释</span>
+      </div>
+    </div>
+
+    <div class="pane" id="pane-plan">
+      <pre id="planView">（生成后显示绘图方案）</pre>
+    </div>
+
+    <div class="timeline" id="timeline"></div>
+  </section>
+</main>
+
+<!-- 设置弹窗 -->
+<div class="modal" id="settingsModal" hidden>
+  <div class="modal-card">
+    <h3>API 设置（BYO Key）</h3>
+    <label>厂商 <select id="cfgProvider"></select></label>
+    <label>接口地址 <input id="cfgBase" placeholder="https://api.deepseek.com/v1"></label>
+    <label>API Key <input id="cfgKey" type="password" placeholder="留空 = 保留已存 Key"></label>
+    <label>模型 <input id="cfgModel" placeholder="deepseek-chat"></label>
+    <div class="modal-actions">
+      <button class="ghost" id="cfgTestBtn">测试连接</button>
+      <button id="cfgSaveBtn">保存并启用</button>
+      <button class="ghost" id="cfgCloseBtn">关闭</button>
+    </div>
+    <div class="cfg-msg" id="cfgMsg"></div>
+    <hr>
+    <details>
+      <summary>在线更新</summary>
+      <div class="update-panel">
+        <div id="upStatus">当前版本 v?</div>
+        <input id="upSource" placeholder="更新源地址（官方包内置，可不填）">
+        <div class="modal-actions">
+          <button class="ghost" id="upCheckBtn">检查更新</button>
+          <button id="upDownloadBtn" hidden>下载新版</button>
+          <button id="upApplyBtn" hidden>重启完成升级</button>
+        </div>
+        <div class="cfg-msg" id="upMsg"></div>
+      </div>
+    </details>
+  </div>
+</div>
+
+<!-- 更新日志弹窗 -->
+<div class="modal" id="changelogModal" hidden>
+  <div class="modal-card wide">
+    <h3>更新日志</h3>
+    <div id="changelogBody" class="changelog"></div>
+    <div class="modal-actions"><button class="ghost" id="changelogCloseBtn">关闭</button></div>
+  </div>
+</div>
+
+<script src="/ggb_host.js?v=12"></script>
+<script src="/app.js?v=12"></script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+*.log
+.venv
+.venv/
+.venv.nosync/
+.venv*/
+data
+data/
+data.nosync/
+.DS_Store
+*.icloud
+# GeoGebra 引擎（约 115MB，GeoGebra 版权、非商业许可）——首次运行由 scripts/setup_ggb.py 自动拉取
+frontend/vendor/ggb/

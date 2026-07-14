@@ -1,4 +1,21 @@
+<div align="center">
+
 # Any2GGB
+
+**一句话，生成可以继续加工的 GeoGebra 题目配图。**
+
+<p>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-brightgreen" alt="MIT License"></a>
+  <img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python 3.10+">
+  <img src="https://img.shields.io/badge/version-v0.4.5-5B5BD6" alt="v0.4.5">
+  <img src="https://img.shields.io/badge/engine-GeoGebra-D95F02" alt="GeoGebra">
+</p>
+
+🌐 **[项目介绍页 →](https://bubailai.github.io/Any2GGB/)**
+
+</div>
+
+---
 
 数理老师的 **AI 配图工具**：一句话描述题目图形 → AI 生成 GGB 脚本 → 浏览器 GeoGebra 实时渲染 →
 工具栏继续手动加工 → 一键复制 / 导出高清 PNG 插进题目。勾选「加入互动」后，AI 会按需求设计滑杆、动点、勾选框或动画。

@@ -11,8 +11,6 @@
   <img src="https://img.shields.io/badge/engine-GeoGebra-D95F02" alt="GeoGebra">
 </p>
 
-🌐 **[项目介绍页 →](https://bubailai.github.io/Any2GGB/)**
-
 </div>
 
 ---
